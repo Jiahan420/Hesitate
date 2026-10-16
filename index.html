@@ -3,36 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>設備掃描借用系統</title>
+    <title>設備掃描借還系統</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f8f9fa; }
         #reader { width: 100%; max-width: 450px; margin: 0 auto; background: black; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
         #result { margin-top: 25px; font-size: 18px; font-weight: bold; color: #333; white-space: pre-wrap; line-height: 1.5; min-height: 60px; }
-        /* 新增選單的樣式 */
+        
+        /* 模式切換按鈕樣式 */
+        .mode-container { margin-bottom: 15px; }
+        .mode-btn { padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; margin: 0 5px; background-color: #ddd; color: #333; transition: 0.2s; }
+        .mode-btn.active.borrow { background-color: #28a745; color: white; }
+        .mode-btn.active.return { background-color: #007bff; color: white; }
+
         #camera-select { margin-bottom: 15px; padding: 8px; font-size: 16px; border-radius: 5px; width: 100%; max-width: 300px; }
     </style>
 </head>
 <body>
-    <h2>📷 設備掃描借用系統</h2>
+    <h2>📷 設備掃描借還系統</h2>
     
-    <!-- 新增：手動選擇鏡頭的下拉選單 -->
+    <!-- 借用與還書模式切換按鈕 -->
+    <div class="mode-container">
+        <button id="btn-borrow" class="mode-btn active borrow" onclick="setMode('borrow')">📦 設備借用</button>
+        <button id="btn-return" class="mode-btn return" onclick="setMode('return')">🔄 設備歸還</button>
+    </div>
+
+    <!-- 手動選擇鏡頭的下拉選單 -->
     <select id="camera-select"></select>
     
     <div id="reader"></div>
     <div id="result">相機啟動中，請稍候...</div>
 
-
     <script>
         // ★★★ 請替換成您的 GAS 網頁應用程式網址 ★★★
         const API_URL = "https://script.google.com/macros/s/AKfycbw6dX9rQ6suALSNZu2Mst5G4py9umijZQgyeKvyo6-HYRe77TSxNEix2TEHxRKFoD1T/exec"; 
 
-
+        let currentMode = "borrow"; // 預設為借用模式
         let isProcessing = false; 
         const html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         const cameraSelect = document.getElementById('camera-select');
 
+        // 切換模式的函式
+        function setMode(mode) {
+            currentMode = mode;
+            const btnBorrow = document.getElementById('btn-borrow');
+            const btnReturn = document.getElementById('btn-return');
+
+            if (mode === 'borrow') {
+                btnBorrow.className = "mode-btn active borrow";
+                btnReturn.className = "mode-btn return";
+            } else {
+                btnBorrow.className = "mode-btn borrow";
+                btnReturn.className = "mode-btn active return";
+            }
+        }
 
         function onScanSuccess(decodedText) {
             if (isProcessing) return; 
@@ -44,9 +69,11 @@
             
             const resultDiv = document.getElementById('result');
             resultDiv.style.color = "#0056b3";
-            resultDiv.innerText = `讀取到編號：${decodedText}\n連線中...`;
+            const modeText = currentMode === 'borrow' ? '借用處理中' : '歸還處理中';
+            resultDiv.innerText = `讀取到編號：${decodedText}\n${modeText}...`;
             
-            fetch(API_URL + "?id=" + decodedText)
+            // 組合 API 請求，帶入 id 與 action 參數
+            fetch(`${API_URL}?id=${decodedText}&action=${currentMode}`)
                 .then(response => response.text())
                 .then(text => {
                     resultDiv.style.color = text.includes("成功") ? "green" : "red";
@@ -64,14 +91,12 @@
                 });
         }
 
-
         // 啟動指定鏡頭的函數
         function startCamera(cameraId) {
             html5QrCode.start(cameraId, config, onScanSuccess)
                 .then(() => { document.getElementById('result').innerText = "請對準 QR Code 進行掃描..."; })
                 .catch(err => { console.error(err); });
         }
-
 
         // 抓取設備上所有鏡頭並放入下拉選單
         Html5Qrcode.getCameras().then(devices => {
@@ -83,10 +108,8 @@
                     cameraSelect.appendChild(option);
                 });
 
-
                 // 預設啟動選單裡的第一個鏡頭
                 startCamera(cameraSelect.value);
-
 
                 // 當使用者切換選單時，停止目前鏡頭並啟動新鏡頭
                 cameraSelect.addEventListener('change', () => {
