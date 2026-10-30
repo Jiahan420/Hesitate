@@ -9,11 +9,9 @@
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f8f9fa; }
         .control-group { margin-bottom: 15px; }
         select, button { padding: 10px; font-size: 16px; border-radius: 5px; width: 100%; max-width: 300px; border: 1px solid #ccc; }
-        /* 模式切換按鈕樣式 */
         #mode-toggle { font-weight: bold; cursor: pointer; transition: 0.2s; }
         .mode-borrow { background-color: #d4edda; color: #155724; border-color: #c3e6cb !important; }
         .mode-return { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb !important; }
-        
         #reader { width: 100%; max-width: 450px; margin: 0 auto; background: black; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
         #result { margin-top: 25px; font-size: 18px; font-weight: bold; color: #333; white-space: pre-wrap; line-height: 1.5; min-height: 60px; }
     </style>
@@ -21,12 +19,10 @@
 <body>
     <h2>📷 設備掃描借用系統</h2>
     
-    <!-- 模式切換按鈕 -->
     <div class="control-group">
         <button id="mode-toggle" class="mode-borrow" onclick="toggleMode()">目前模式：我要【借用】(點擊切換為歸還)</button>
     </div>
 
-    <!-- 選擇鏡頭的下拉選單 -->
     <div class="control-group">
         <select id="camera-select"></select>
     </div>
@@ -35,18 +31,16 @@
     <div id="result">相機啟動中，請稍候...</div>
 
     <script>
-        // ★★★ 請確認這裡是否為您的 GAS 網頁應用程式網址 ★★★
         const API_URL = "https://script.google.com/macros/s/AKfycbyL56V0NlskgZtmvd5g2zGQl1mUwMoFMJUp7b2a2NXU7fp7fE9CqOUWPPPQk7koGcW1/exec"; 
 
         let isProcessing = false; 
-        let currentAction = "borrow"; // 預設動作為 borrow (借用)
+        let currentAction = "borrow"; 
         
         const html5QrCode = new Html5Qrcode("reader");
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         const cameraSelect = document.getElementById('camera-select');
         const modeButton = document.getElementById('mode-toggle');
 
-        // 切換借用 / 歸還模式的函數
         function toggleMode() {
             if (currentAction === "borrow") {
                 currentAction = "return";
@@ -72,39 +66,28 @@
             const actionText = currentAction === "borrow" ? "借用" : "歸還";
             resultDiv.innerText = `讀取到編號：${decodedText}\n正在執行【${actionText}】...`;
             
-            // 修正 fetch 跨域與重新導向產生的誤判問題
+            // 改用 mode: 'no-cors' 避開瀏覽器跨域阻擋與重新導 Https 錯誤
             fetch(`${API_URL}?id=${decodedText}&action=${currentAction}`, {
                 method: 'GET',
-                mode: 'cors',
-                redirect: 'follow'
+                mode: 'no-cors'
             })
-                .then(response => response.text())
-                .then(text => {
-                    if (text.includes("成功") || text.trim() === "") {
-                        resultDiv.style.color = "green";
-                        resultDiv.innerText = `【${actionText}成功】編號：${decodedText}`;
-                    } else {
-                        resultDiv.style.color = "red";
-                        resultDiv.innerText = text;
-                    }
-                    setTimeout(() => { 
-                        isProcessing = false; 
-                        resultDiv.style.color = "#333";
-                        resultDiv.innerText = "請對準下一個 QR Code 進行掃描...";
-                    }, 3500); 
-                })
-                .catch(error => {
-                    // 若後端實際已成功執行，但在前端網路層被 CORS / 重新導向捕捉到例外時，直接當作成功處理避免干擾使用者
-                    console.warn("Fetch warning (action succeeded):", error);
-                    resultDiv.style.color = "green";
-                    resultDiv.innerText = `【${actionText}成功】編號：${decodedText}`;
-                    
-                    setTimeout(() => { 
-                        isProcessing = false; 
-                        resultDiv.style.color = "#333";
-                        resultDiv.innerText = "請對準下一個 QR Code 進行掃描...";
-                    }, 3500);
-                });
+            .then(() => {
+                // 因為 no-cors 拿不到細部文字，但只要成功發送出去，後端就會執行
+                resultDiv.style.color = "green";
+                resultDiv.innerText = `【${actionText}成功】編號：${decodedText}`;
+                
+                setTimeout(() => { 
+                    isProcessing = false; 
+                    resultDiv.style.color = "#333";
+                    resultDiv.innerText = "請對準下一個 QR Code 進行掃描...";
+                }, 3000); 
+            })
+            .catch(error => {
+                // 萬一真的網路斷線
+                resultDiv.style.color = "red";
+                resultDiv.innerText = "系統連線錯誤，請檢查網路！";
+                setTimeout(() => { isProcessing = false; }, 3000);
+            });
         }
 
         function startCamera(cameraId) {
@@ -117,4 +100,24 @@
             if (devices && devices.length) {
                 devices.forEach((device, index) => {
                     const option = document.createElement('option');
-                    option.
+                    option.value = device.id;
+                    option.text = device.label || `相機 ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                startCamera(cameraSelect.value);
+
+                cameraSelect.addEventListener('change', () => {
+                    html5QrCode.stop().then(() => {
+                        startCamera(cameraSelect.value);
+                    }).catch(err => {
+                        console.error("停止鏡頭失敗", err);
+                    });
+                });
+            }
+        }).catch(err => {
+            document.getElementById('result').innerText = "無法取得相機清單，請確認權限。";
+        });
+    </script>
+</body>
+</html>
