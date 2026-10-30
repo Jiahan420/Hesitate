@@ -93,14 +93,15 @@
             }
         }
 
-        // 開啟彈跳視窗並載入清單
+        // 開啟彈跳視窗並載入清單（加上時間戳記 rand 避免快取）
         function openModal() {
             const modal = document.getElementById('listModal');
             const modalBody = document.getElementById('modal-body');
             modal.style.display = 'flex';
             modalBody.innerHTML = "<p style='text-align: center; color: #666;'>載入中...</p>";
 
-            fetch(`${API_URL}?action=getBorrowedList`)
+            const timestamp = new Date().getTime();
+            fetch(`${API_URL}?action=getBorrowedList&rand=${timestamp}`)
                 .then(res => res.json())
                 .then(resData => {
                     if (resData.status === "success") {
@@ -141,7 +142,7 @@
             }
         }
 
-        // 掃描成功處理（改用隱藏 iframe 發送請求，徹底解決連線錯誤問題）
+        // 掃描成功處理（使用隱藏 iframe 發送請求）
         function onScanSuccess(decodedText) {
             if (isProcessing) return; 
             isProcessing = true;
@@ -155,7 +156,6 @@
             const actionText = currentAction === "borrow" ? "借用" : "歸還";
             resultDiv.innerText = `讀取到編號：${decodedText}\n正在執行【${actionText}】...`;
             
-            // 建立隱藏 iframe 送出請求
             const iframe = document.createElement('iframe');
             iframe.style.display = 'none';
             iframe.src = `${API_URL}?id=${decodedText}&action=${currentAction}`;
