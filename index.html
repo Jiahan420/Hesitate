@@ -21,7 +21,7 @@
 <body>
     <h2>📷 設備掃描借用系統</h2>
     
-    <!-- 新增：模式切換按鈕 -->
+    <!-- 模式切換按鈕 -->
     <div class="control-group">
         <button id="mode-toggle" class="mode-borrow" onclick="toggleMode()">目前模式：我要【借用】(點擊切換為歸還)</button>
     </div>
@@ -35,7 +35,7 @@
     <div id="result">相機啟動中，請稍候...</div>
 
     <script>
-        // ★★★ 請替換成您的 GAS 網頁應用程式網址 ★★★
+        // ★★★ 請確認這裡是否為您的 GAS 網頁應用程式網址 ★★★
         const API_URL = "https://script.google.com/macros/s/AKfycbw6dX9rQ6suALSNZu2Mst5G4py9umijZQgyeKvyo6-HYRe77TSxNEix2TEHxRKFoD1T/exec"; 
 
         let isProcessing = false; 
@@ -72,7 +72,7 @@
             const actionText = currentAction === "borrow" ? "借用" : "歸還";
             resultDiv.innerText = `讀取到編號：${decodedText}\n正在執行【${actionText}】...`;
             
-            // 關鍵修改：將動態的 currentAction 帶入網址參數中 (?id=xxx&action=borrow 或 return)
+            // 將動態的 currentAction 參數帶入網址 (?id=xxx&action=borrow 或 return)
             fetch(`${API_URL}?id=${decodedText}&action=${currentAction}`)
                 .then(response => response.text())
                 .then(text => {
@@ -91,14 +91,12 @@
                 });
         }
 
-        // 啟動指定鏡頭的函數
         function startCamera(cameraId) {
             html5QrCode.start(cameraId, config, onScanSuccess)
                 .then(() => { document.getElementById('result').innerText = "請對準 QR Code 進行掃描..."; })
                 .catch(err => { console.error(err); });
         }
 
-        // 抓取設備上所有鏡頭並放入下拉選單
         Html5Qrcode.getCameras().then(devices => {
             if (devices && devices.length) {
                 devices.forEach((device, index) => {
@@ -108,10 +106,8 @@
                     cameraSelect.appendChild(option);
                 });
 
-                // 預設啟動選單裡的第一個鏡頭
                 startCamera(cameraSelect.value);
 
-                // 當使用者切換選單時，停止目前鏡頭並啟動新鏡頭
                 cameraSelect.addEventListener('change', () => {
                     html5QrCode.stop().then(() => {
                         startCamera(cameraSelect.value);
