@@ -41,7 +41,7 @@
             <button id="mode-toggle" class="mode-borrow" onclick="toggleMode()">目前模式：我要【借用】(點擊切換為歸還)</button>
         </div>
 
-        <!-- 首頁新增：查看已借出清單按鈕 -->
+        <!-- 查看已借出清單按鈕 -->
         <div class="control-group">
             <button class="btn-list" onclick="openModal()">📋 查看目前已借出清單</button>
         </div>
@@ -141,6 +141,7 @@
             }
         }
 
+        // 掃描成功處理（使用 mode: 'no-cors' 避開跨域錯誤）
         function onScanSuccess(decodedText) {
             if (isProcessing) return; 
             isProcessing = true;
@@ -154,23 +155,25 @@
             const actionText = currentAction === "borrow" ? "借用" : "歸還";
             resultDiv.innerText = `讀取到編號：${decodedText}\n正在執行【${actionText}】...`;
             
-            fetch(`${API_URL}?id=${decodedText}&action=${currentAction}`)
-                .then(res => res.json())
-                .then(data => {
-                    resultDiv.style.color = data.status === "success" ? "green" : "red";
-                    resultDiv.innerText = data.message;
+            fetch(`${API_URL}?id=${decodedText}&action=${currentAction}`, {
+                method: 'GET',
+                mode: 'no-cors'
+            })
+            .then(() => {
+                resultDiv.style.color = "green";
+                resultDiv.innerText = `【${actionText}成功】編號：${decodedText}`;
 
-                    setTimeout(() => { 
-                        isProcessing = false; 
-                        resultDiv.style.color = "#333";
-                        resultDiv.innerText = "請對準下一個 QR Code 進行掃描...";
-                    }, 3500); 
-                })
-                .catch(error => {
-                    resultDiv.style.color = "red";
-                    resultDiv.innerText = "系統連線錯誤，請檢查網路！";
-                    setTimeout(() => { isProcessing = false; }, 3000);
-                });
+                setTimeout(() => { 
+                    isProcessing = false; 
+                    resultDiv.style.color = "#333";
+                    resultDiv.innerText = "請對準下一個 QR Code 進行掃描...";
+                }, 3000); 
+            })
+            .catch(error => {
+                resultDiv.style.color = "red";
+                resultDiv.innerText = "系統連線錯誤，請檢查網路！";
+                setTimeout(() => { isProcessing = false; }, 3000);
+            });
         }
 
         function startCamera(cameraId) {
